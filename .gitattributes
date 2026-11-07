@@ -1,0 +1,35 @@
+# 行尾与文本/二进制归属。
+#
+# 规则：同一个文件被多条规则匹配时，**后面的规则生效**，所以「Windows 端产物 → CRLF」
+# 这一段放在最末尾，用来压过前面按扩展名给的 LF。
+#
+# 为什么 bat 必须 CRLF：cmd.exe 解析 LF-only 的批处理会吃掉半行，报错形如
+# "'gure' 不是内部或外部命令"，且 `set BUILD=` 会静默失效。
+
+# ── 源码与文档：LF（跨平台编辑器、diff 都友好）────────────────
+*.c             text eol=lf
+*.h             text eol=lf
+*.cpp           text eol=lf
+*.in            text eol=lf
+*.py            text eol=lf
+*.md            text eol=lf
+*.html          text eol=lf
+*.spec          text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+
+# ── 二进制：不做任何行尾或文本转换 ─────────────────────────────
+# xlsx 是 zip 容器（回归样本），ico/exe/png 同理
+*.xlsx  binary
+*.ico   binary
+*.zip   binary
+*.exe   binary
+*.png   binary
+
+# ── Windows 端产物：CRLF（放最后，优先级最高）──────────────────
+# bat/rc 给构建用；txt（README）、csv（问题清单）要在记事本 / Excel 里直接打开
+*.bat           text eol=crlf
+*.rc            text eol=crlf
+*.txt           text eol=crlf
+*.csv           text eol=crlf
+CMakeLists.txt  text eol=lf

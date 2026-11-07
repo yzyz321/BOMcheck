@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BOM 对比工具 V4 · 模块化流程图</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:36px 24px 72px;background:#fff;color:#1F2329;
+     font:13px/1.6 'Segoe UI','Microsoft YaHei',system-ui,sans-serif}
+.wrap{max-width:840px;margin:0 auto}
+h1{font-size:20px;font-weight:500;margin:0 0 6px}
+.sub{color:#6B7280;font-size:13px;margin:0}
+nav{margin:18px 0 0;display:flex;gap:8px;flex-wrap:wrap}
+nav a{font-size:12px;color:#185FA5;text-decoration:none;padding:4px 11px;
+      border:1px solid #D8DCE3;border-radius:999px}
+nav a:hover{background:#E6F1FB;border-color:#B5D4F4}
+.hintbar{margin:20px 0 34px;padding:12px 16px;border:1px solid #E4E6EA;
+         border-radius:10px;background:#F7F8FA;font-size:12px;color:#5F5E5A;line-height:1.75}
+.hintbar b{font-weight:500;color:#1F2329}
+.hintbar code{font:12px ui-monospace,Consolas,monospace;background:#EDEFF3;
+              padding:1px 5px;border-radius:4px;color:#185FA5}
+figure{margin:0 0 40px;padding:24px 24px 16px;border:1px solid #E4E6EA;
+       border-radius:14px;background:#fff}
+figcaption{display:block}
+figure h2{font-size:15px;font-weight:500;margin:0 0 4px}
+.cap{color:#6B7280;font-size:12.5px;margin:0 0 16px}
+.canvas svg{display:block;width:100%;height:auto}
+.toolbar{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+button{font:inherit;font-size:12px;padding:5px 12px;border-radius:6px;
+       border:1px solid #D8DCE3;background:#EEF1F5;color:#1F2329;cursor:pointer}
+button:hover{background:#DFE4EC}
+button.primary{background:#2F6FED;border-color:#2F6FED;color:#fff}
+button.primary:hover{background:#1F57C9}
+.editor{margin-top:14px}
+textarea{width:100%;height:300px;padding:12px;border:1px solid #D8DCE3;
+         border-radius:8px;font:12px/1.55 ui-monospace,Consolas,monospace;
+         color:#1F2329;background:#FBFBFC;resize:vertical}
+.row{display:flex;align-items:center;gap:10px;margin-top:8px}
+.msg{font-size:12px;color:#A32D2D}
+.msg.ok{color:#0F6E56}
+footer{color:#8B929C;font-size:12px;border-top:1px solid #E4E6EA;padding-top:16px;margin-top:8px}
+@media print{
+  body{padding:0}
+  nav,.hintbar,.toolbar,.editor{display:none!important}
+  figure{border:none;padding:0;margin:0 0 28px;break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>BOM 对比工具 · 模块化流程图（V4）</h1>
+  <p class="sub">八张图均为 V4（C/C++ 单 exe）现状，模块节点内标注涉及文件名 · 配套《BOM对比工具_V4_设计与实施.md》</p>
+
+  <nav>
+    <a href="#fig-1">图 1 分层模块结构</a>
+    <a href="#fig-2">图 2 比对主流程</a>
+    <a href="#fig-3">图 3 单页数据流</a>
+    <a href="#fig-4">图 4 表头识别链</a>
+    <a href="#fig-5">图 5 选项与四阶段配对</a>
+    <a href="#fig-6">图 6 帮助按钮打开链</a>
+    <a href="#fig-7">图 7 查重模式</a>
+    <a href="#fig-8">图 8 布局数据源与质量链</a>
+  </nav>
+
+  <div class="hintbar">
+    <b>改法一（推荐，即时生效）</b>　点图下方的「编辑」，直接改 JSON：<code>nodes</code> 是方框、<code>edges</code> 是连线、<code>texts</code> 是自由文字，改完点「应用修改」，改动会存在本机浏览器里。<br>
+    <b>改法二（改文件）</b>　用文本编辑器打开本 HTML，搜索 <code>const DIAGRAMS</code>，八张图的数据都在那一个数组里；页面首次打开即按它渲染。<br>
+    <b>常用字段</b>　<code>x / y / w / h</code> 定位与尺寸，<code>label</code> 主文字（模块或动作名），<code>sub</code> 副文字（涉及文件名），<code>theme</code> 取 <code>blue</code> / <code>amber</code> / <code>gray</code>；<code>edges.d</code> 直接写 SVG 路径，如 <code>M340 84 L340 110</code>。<br>
+    <b>导出</b>　「导出 SVG」可得到矢量图，直接拖进 Word / PPT / Visio 不失真。
+  </div>
+
+  <main id="app"></main>
+
+  <footer>全部图形由页面内的数据实时生成，无外部依赖，可离线打开。</footer>
+</div>
+
+<script>
+const THEME = {
+  blue:  { fill: '#E6F1FB', stroke: '#185FA5', text: '#0C447C' },
+  amber: { fill: '#FAEEDA', stroke: '#BA7517', text: '#633806' },
+  gray:  { fill: '#F1EFE8', stroke: '#888780', text: '#444441' }
+};
+
+const DIAGRAMS = [
+  {
+    id: 'fig-1',
+    title: '图 1　分层模块结构（V4 现状）',
+    desc: '自上而下单向依赖：上层调下层，core 不碰 <windows.h>。每个节点标注涉及的文件名（同目录 .h 从略）；layout_gen.h 由 pyref/layout_spec.py 生成，见图 8。',
+    width: 680, height: 440,
+    rects: [
+      { x: 40, y: 34, w: 600, h: 384, rx: 16, fill: '#FBFBFC', stroke: '#D8DCE3' },
+      { x: 56, y: 50,  w: 568, h: 56, rx: 10, fill: '#FFFFFF', stroke: '#E4E6EA' },
+      { x: 56, y: 122, w: 568, h: 56, rx: 10, fill: '#FFFFFF', stroke: '#E4E6EA' },
+      { x: 56, y: 194, w: 568, h: 56, rx: 10, fill: '#FFFFFF', stroke: '#E4E6EA' },
+      { x: 56, y: 266, w: 568, h: 56, rx: 10, fill: '#FFFFFF', stroke: '#E4E6EA' },
+      { x: 56, y: 338, w: 568, h: 56, rx: 10, fill: '#FFFFFF', stroke: '#E4E6EA' }
+    ],
+    texts: [
+      { x: 68, y: 78,  text: 'L5 表现层', size: 12, fill: '#5F5E5A' },
+      { x: 68, y: 150, text: 'L4 编排层', size: 12, fill: '#5F5E5A' },
+      { x: 68, y: 222, text: 'L3 算法层', size: 12, fill: '#5F5E5A' },
+      { x: 68, y: 294, text: 'L2 读取/写出', size: 12, fill: '#5F5E5A' },
+      { x: 68, y: 366, text: 'L1 平台层', size: 12, fill: '#5F5E5A' }
+    ],
+    nodes: [
+      { x: 130, y: 58,  w: 150, h: 40, rx: 8, label: 'main.cpp', size: 12,
+        sub: '入口 · 探针参数' },
+      { x: 295, y: 58,  w: 150, h: 40, rx: 8, label: 'app / paint.cpp', size: 12,
+        sub: '状态机 · 自绘' },
+      { x: 460, y: 58,  w: 150, h: 40, rx: 8, label: 'card / table.cpp', size: 12,
+        sub: '卡片 · 差异表' },
+      { x: 130, y: 130, w: 150, h: 40, rx: 8, label: 'drop / bench.cpp', size: 12,
+        sub: '拖放 · 基准计时' },
+      { x: 295, y: 130, w: 150, h: 40, rx: 8, label: 'selfcheck.cpp', size: 12,
+        sub: '--self-check 自检' },
+      { x: 460, y: 130, w: 150, h: 40, rx: 8, label: 'layout / dpi.cpp', size: 12,
+        sub: '布局换算 · DPI' },
+      { x: 130, y: 202, w: 150, h: 40, rx: 8, label: 'bs_pair.c', size: 12,
+        sub: '四阶段配对' },
+      { x: 295, y: 202, w: 150, h: 40, rx: 8, label: 'bs_pn.c', size: 12,
+        sub: '料号 / 位号归一' },
+      { x: 460, y: 202, w: 150, h: 40, rx: 8, label: 'bs_mark.c', size: 12,
+        sub: '涂色 + 批注回写' },
+      { x: 130, y: 274, w: 150, h: 40, rx: 8, label: 'bs_zip / bs_xml.c', size: 12,
+        sub: 'zip · XML 解析' },
+      { x: 295, y: 274, w: 150, h: 40, rx: 8, label: 'bs_xlsx / bs_sheet.c', size: 12,
+        sub: '网格 · 表头识别' },
+      { x: 460, y: 274, w: 150, h: 40, rx: 8, label: 'bs_write / bs_zipw.c', size: 12,
+        sub: '差异表 · 标注包' },
+      { x: 130, y: 346, w: 150, h: 40, rx: 8, label: 'bs_arena.c', size: 12,
+        sub: '内存池' },
+      { x: 295, y: 346, w: 150, h: 40, rx: 8, label: 'bs_inflate.c', size: 12,
+        sub: 'bs_file.c · 解压' },
+      { x: 460, y: 346, w: 150, h: 40, rx: 8, label: 'utf8 / version', size: 12,
+        sub: 'utf8.cpp · bs_version.c' }
+    ],
+    edges: []
+  },
+  {
+    id: 'fig-2',
+    title: '图 2　比对主流程（两侧是不同的文件）',
+    desc: '自上而下六步，节点内标注涉及文件。两侧指向同一个文件时本流程不适用，改走查重（图 7）。',
+    width: 680, height: 500,
+    rects: [],
+    texts: [],
+    nodes: [
+      { x: 170, y: 40,  w: 340, h: 52, rx: 8, label: '拖入旧 / 新 BOM（.xlsx）',
+        sub: 'src/ui/drop.cpp · card.cpp' },
+      { x: 170, y: 118, w: 340, h: 52, rx: 8, label: '读工作表清单 → 生成页对',
+        sub: 'src/core/bs_xlsx.c · src/ui/app.cpp' },
+      { x: 170, y: 196, w: 340, h: 52, rx: 8, label: '逐页：识别表头 → 读网格',
+        sub: 'src/core/bs_sheet.c · bs_xlsx.c' },
+      { x: 170, y: 274, w: 340, h: 52, rx: 8, label: '四阶段配对 + 三个比对选项',
+        sub: 'src/core/bs_pair.c · bs_cfg.h' },
+      { x: 170, y: 352, w: 340, h: 52, rx: 8, label: '写出差异清单 + 两份标注副本',
+        sub: 'src/core/bs_write.c · bs_zipw.c · bs_deflate.c' },
+      { x: 170, y: 430, w: 340, h: 52, rx: 8, label: '12 列差异表 · 统计 · 日志',
+        sub: 'src/ui/table.cpp · app.cpp · paint.cpp' }
+    ],
+    edges: [
+      { d: 'M340 92 L340 116' },
+      { d: 'M340 170 L340 194' },
+      { d: 'M340 248 L340 272' },
+      { d: 'M340 326 L340 350' },
+      { d: 'M340 404 L340 428' }
+    ]
+  },
+  {
+    id: 'fig-3',
+    title: '图 3　单页比对数据流',
+    desc: '一个页对的内部：网格经表头识别切成行记录，四阶段配对分成三类，再汇成 12 列差异表与标注映射。',
+    width: 680, height: 450,
+    rects: [],
+    texts: [
+      { x: 20, y: 428, text: '※ 双键关闭时，无料号行（kind==\'R\'）整行跳过并计入 n_skipped，不进阶段 D。', size: 11, fill: '#6B7280' }
+    ],
+    nodes: [
+      { x: 40,  y: 40,  w: 190, h: 56, rx: 8, label: '识别表头行与三列',
+        sub: 'bs_sheet.c · bs_cfg.h' },
+      { x: 250, y: 40,  w: 190, h: 56, rx: 8, label: '逐行读取行记录',
+        sub: 'bs_xlsx.c（含合并格取值）' },
+      { x: 460, y: 40,  w: 170, h: 56, rx: 8, label: '文本 / 数量归一',
+        sub: 'bs_pn.c bs_norm_str' },
+      { x: 240, y: 150, w: 200, h: 52, rx: 8, label: '四阶段配对',
+        sub: 'bs_pair.c（图 5）' },
+      { x: 40,  y: 250, w: 170, h: 52, rx: 8, label: '新增（阶段 D）', theme: 'amber',
+        sub: 'right_only' },
+      { x: 255, y: 250, w: 170, h: 52, rx: 8, label: '变更（chg 位）', theme: 'amber',
+        sub: '位号/数量/料号/删除线' },
+      { x: 470, y: 250, w: 170, h: 52, rx: 8, label: '删除（阶段 D）', theme: 'amber',
+        sub: 'left_only' },
+      { x: 170, y: 352, w: 340, h: 52, rx: 8, label: '差异表 12 列 + 标注映射',
+        sub: 'bs_write.c 出表 · bs_mark.c 涂色' }
+    ],
+    edges: [
+      { d: 'M230 68 L246 68' },
+      { d: 'M440 68 L456 68' },
+      { d: 'M545 96 L545 124 L340 124 L340 146' },
+      { d: 'M340 202 L340 226' },
+      { d: 'M125 226 L555 226' },
+      { d: 'M125 226 L125 246' },
+      { d: 'M340 226 L340 246' },
+      { d: 'M555 226 L555 246' },
+      { d: 'M125 302 L125 328' },
+      { d: 'M555 302 L555 328' },
+      { d: 'M125 328 L555 328' },
+      { d: 'M340 328 L340 348' }
+    ]
+  },
+  {
+    id: 'fig-4',
+    title: '图 4　表头识别链（src/core/bs_sheet.c）',
+    desc: '拖拽载入后先缓冲，靠「列名 + 内容格式」双证据定位表头块与三列；一个工作表可能有多套表头（分组 BOM）。位号列猜测与「双键」解耦：识别是识别、配对是配对。',
+    width: 680, height: 440,
+    rects: [],
+    texts: [],
+    nodes: [
+      { x: 150, y: 36,  w: 380, h: 56, rx: 8, label: '读包：zip → 解压 → XML 解析',
+        sub: 'bs_file.c · bs_zip.c · bs_inflate.c · bs_xml.c' },
+      { x: 150, y: 116, w: 380, h: 56, rx: 8, label: '缓存前 N 行逐行打分（双证据）',
+        sub: '列名命中 ALIAS_* + 内容格式命中 ≥50%' },
+      { x: 150, y: 196, w: 380, h: 56, rx: 8, label: '识别全部表头块', theme: 'amber',
+        sub: '一页可有多套表（分组 BOM）' },
+      { x: 150, y: 276, w: 380, h: 56, rx: 8, label: '逐块定位料号 / 位号 / 数量列',
+        sub: '别名精确匹配；缺认时 guess_ref_column 兜底' },
+      { x: 150, y: 356, w: 380, h: 56, rx: 8, label: '产出 blocks[] 与列号',
+        sub: 'col_pn / col_ref / col_qty（bs_sheet.h）' }
+    ],
+    edges: [
+      { d: 'M340 92 L340 114' },
+      { d: 'M340 172 L340 194' },
+      { d: 'M340 252 L340 274' },
+      { d: 'M340 332 L340 354' }
+    ]
+  },
+  {
+    id: 'fig-5',
+    title: '图 5　比对选项与四阶段配对（V4 默认口径）',
+    desc: '界面默认：双键关 · 阈值 0.90 · 整行逐列比较关（app.cpp 构造函数写死，引擎默认值见 bs_cfg_default）。A/B/C 依次尝试命中即停，只有 C 能覆盖「不贴 ↔ 贴装」互转。',
+    width: 680, height: 570,
+    rects: [
+      { x: 14, y: 200, w: 652, h: 88, rx: 12, fill: '#FBFBFC', stroke: '#D8DCE3' }
+    ],
+    texts: [
+      { x: 360, y: 306, text: '按 A→B→C 依次尝试，命中即停；D 只收尾', size: 11,
+        fill: '#6B7280', anchor: 'start' },
+      { x: 20, y: 556, text: 'C 的硬约束：至少一侧无料号。双键关闭时阈值框置灰、阶段 C 不运行；两侧都有料号却不等 = 不同器件，不可合并。', size: 11, fill: '#6B7280' }
+    ],
+    nodes: [
+      { x: 150, y: 36,  w: 380, h: 56, rx: 8, label: '界面默认（app.cpp 构造函数）',
+        sub: '双键关 · 阈值 0.90 · 逐列比较关（bs_cfg.h）' },
+      { x: 150, y: 112, w: 380, h: 52, rx: 8, label: '无料号行先分流',
+        sub: 'kind==\'R\'：双键关 → 跳过计 n_skipped；开 → R: 键兜底' },
+      { x: 21,  y: 210, w: 152, h: 60, rx: 8, label: 'A 料号精确',
+        sub: 'P: 键相等 · bs_pn.c' },
+      { x: 183, y: 210, w: 152, h: 60, rx: 8, label: 'B 位号精确',
+        sub: 'R: 键相等（双键开）' },
+      { x: 345, y: 210, w: 152, h: 60, rx: 8, label: 'C 位号近似', theme: 'amber',
+        sub: 'Jaccard ≥ 0.30–0.95' },
+      { x: 507, y: 210, w: 152, h: 60, rx: 8, label: 'D 补增删',
+        sub: '剩余未配对行' },
+      { x: 150, y: 344, w: 380, h: 52, rx: 8, label: '差异判定（配对成功的行）',
+        sub: '位号集合 · 数量 · 料号 · 删除线（BS_CHG_*）' },
+      { x: 150, y: 416, w: 380, h: 52, rx: 8, label: '整行逐列比较（row_diff_all）',
+        sub: '勾选后其余列逐格比 · bs_sheet_text_at + bs_norm_str' },
+      { x: 150, y: 488, w: 380, h: 52, rx: 8, label: '结果 12 列 · 变更项可含「其他列」',
+        sub: 'bs_write.c · 不同格涂黄（bs_mark.c）' }
+    ],
+    edges: [
+      { d: 'M340 92 L340 108' },
+      { d: 'M340 164 L340 182' },
+      { d: 'M97 182 L583 182' },
+      { d: 'M97 182 L97 206' },
+      { d: 'M259 182 L259 206' },
+      { d: 'M421 182 L421 206' },
+      { d: 'M583 182 L583 206' },
+      { d: 'M340 270 L340 340' },
+      { d: 'M340 396 L340 412' },
+      { d: 'M340 468 L340 484' }
+    ]
+  },
+  {
+    id: 'fig-6',
+    title: '图 6　帮助按钮的打开链（src/ui/app.cpp open_help）',
+    desc: '标题栏「使用手册」（hdr.help）打开 exe 同目录的用户使用手册.html；缺失时退回简要说明弹框。四层打开链确保任何一层失败都带 Win32 错误码，不再「点了没反应」。',
+    width: 680, height: 380,
+    rects: [],
+    texts: [
+      { x: 20, y: 356, text: '※ 打开成功写日志「已用系统默认程序打开」；全层失败弹错误码 + 成因 + 「把路径粘到浏览器地址栏」的临时办法。', size: 11, fill: '#6B7280' }
+    ],
+    nodes: [
+      { x: 170, y: 36,  w: 340, h: 52, rx: 8, label: '点击「使用手册」hdr.help',
+        sub: 'pyref/layout_spec.py → src/ui/layout_gen.h · app.cpp' },
+      { x: 170, y: 112, w: 340, h: 52, rx: 8, label: 'help_target()：定位并判定手册',
+        sub: 'GetModuleFileNameW + GetFileAttributesW' },
+      { x: 30,  y: 200, w: 300, h: 88, rx: 8, label: '手册存在 → 四层打开链',
+        sub: 'CreateFileW → ShellExecuteExW → rundll32 → ProgId' },
+      { x: 350, y: 200, w: 300, h: 88, rx: 8, label: '手册缺失 → 简要说明弹框', theme: 'amber',
+        sub: '双键 · 阈值 · 逐列比较 · 同文件查重' }
+    ],
+    edges: [
+      { d: 'M340 88 L340 108' },
+      { d: 'M340 164 L340 176' },
+      { d: 'M340 176 L180 176 L180 196' },
+      { d: 'M340 176 L500 176 L500 196' }
+    ]
+  },
+  {
+    id: 'fig-7',
+    title: '图 7　查重模式（两侧同一个文件）',
+    desc: '同一份 BOM 比差异必然全等，改按料号数重复行：结果换 8 列、图例换单色，只写一份带色副本。',
+    width: 680, height: 430,
+    rects: [],
+    texts: [
+      { x: 20, y: 404, text: '※ 判定先 samefile、退回 normcase(abspath)；两侧不同文件仍走图 2。', size: 11, fill: '#6B7280' }
+    ],
+    nodes: [
+      { x: 170, y: 30,  w: 340, h: 44, rx: 8, label: '两侧选到同一个文件（samefile 判定）',
+        sub: 'src/ui/card.cpp' },
+      { x: 170, y: 92,  w: 340, h: 44, rx: 8, label: '按所选工作表逐页统计',
+        sub: 'src/core/bs_sheet.c' },
+      { x: 170, y: 154, w: 340, h: 44, rx: 8, label: '料号归一化 → 分组计数',
+        sub: 'src/core/bs_pn.c · bs_pair.c' },
+      { x: 170, y: 216, w: 340, h: 44, rx: 8, label: '次数 ≥ 2 → 重复料号（无料号行不计）', theme: 'amber',
+        sub: 'dup_policy=SEQ：顺序配对' },
+      { x: 170, y: 278, w: 340, h: 44, rx: 8, label: '查重表 8 列 + 单色图例',
+        sub: 'src/core/bs_write.c（重复行整行浅紫）' },
+      { x: 170, y: 340, w: 340, h: 44, rx: 8, label: '写出 <主名>_查重标注.xlsx',
+        sub: 'src/core/bs_mark.c：整行涂色 + 批注 n/N' },
+      { x: 520, y: 218, w: 130, h: 40, rx: 8, label: '无重复 → 不写文件', theme: 'gray' }
+    ],
+    edges: [
+      { d: 'M340 74 L340 90' },
+      { d: 'M340 136 L340 152' },
+      { d: 'M340 198 L340 214' },
+      { d: 'M340 260 L340 276' },
+      { d: 'M340 322 L340 338' },
+      { d: 'M510 176 L585 176 L585 214' }
+    ]
+  },
+  {
+    id: 'fig-8',
+    title: '图 8　布局单一数据源与构建·质量链',
+    desc: '同一份布局表（pyref/layout_spec.py）三路消费：摆控件、出对照表、做校验。对账用 Python oracle（pyref/bomcore.py，与 C 同源算法）逐项互证，这是 V4 质量体系的骨架。',
+    width: 680, height: 530,
+    rects: [
+      { x: 14, y: 344, w: 652, h: 120, rx: 12, fill: '#FBFBFC', stroke: '#D8DCE3' }
+    ],
+    texts: [
+      { x: 30, y: 358, text: '构建与对账（build_c.bat 共 15 步）', size: 11, weight: 500, fill: '#6B7280' }
+    ],
+    nodes: [
+      { x: 150, y: 36,  w: 380, h: 52, rx: 8, label: 'pyref/layout_spec.py（49 个控件）',
+        sub: '布局单一数据源：坐标 · 文案 · 提示' },
+      { x: 150, y: 112, w: 380, h: 52, rx: 8, label: 'tools/gen_layout_c.py（构建第 0 步）',
+        sub: '→ src/ui/layout_gen.h：摆控件 / 命中 / 对照表同源' },
+      { x: 150, y: 188, w: 380, h: 52, rx: 8, label: 'BOMCheck --export-layout-doc',
+        sub: 'src/ui/layout_doc.cpp → docs/GUI控件位置对照表.md' },
+      { x: 150, y: 264, w: 380, h: 52, rx: 8, label: 'tools/check_layout.py',
+        sub: '三尺寸校验：0 重叠 · 0 越界' },
+      { x: 30,  y: 368, w: 300, h: 52, rx: 8, label: 'build_c.bat → BOMCheck_V<版>.exe',
+        sub: '静态链接 · 零第三方运行库' },
+      { x: 360, y: 368, w: 290, h: 52, rx: 8, label: 'tools/check_*.py × 11 对账',
+        sub: 'oracle：pyref/bomcore.py（与 C 同源）' },
+      { x: 140, y: 448, w: 400, h: 48, rx: 8, label: 'dist/BOMCheck_V<版>/ + 同名 zip', theme: 'amber',
+        sub: 'exe + README.txt + 用户使用手册 + 控件对照表' }
+    ],
+    edges: [
+      { d: 'M340 88 L340 108' },
+      { d: 'M340 164 L340 184' },
+      { d: 'M340 240 L340 260' },
+      { d: 'M340 316 L340 340', dash: true },
+      { d: 'M180 420 L180 446' },
+      { d: 'M505 420 L505 446' }
+    ]
+  }
+];
+
+const INITIAL = JSON.parse(JSON.stringify(DIAGRAMS));
+const STORE_KEY = 'bom-flowcharts-v4';
+let DATA = JSON.parse(JSON.stringify(DIAGRAMS));
+
+(function restore() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (Array.isArray(saved) && saved.length === INITIAL.length) DATA = saved;
+  } catch (e) { /* 本地存储不可用时按默认数据渲染 */ }
+})();
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+  });
+}
+
+function renderDiagram(d) {
+  const mid = 'arrow-' + d.id;
+  let s = '<svg viewBox="0 0 ' + d.width + ' ' + d.height + '" width="100%" '
+        + 'xmlns="http://www.w3.org/2000/svg" role="img" '
+        + 'font-family="\'Segoe UI\',\'Microsoft YaHei\',system-ui,sans-serif">';
+  s += '<title>' + esc(d.title) + '</title><desc>' + esc(d.desc) + '</desc>';
+  s += '<defs><marker id="' + mid + '" viewBox="0 0 10 10" refX="8" refY="5" '
+     + 'markerWidth="6" markerHeight="6" orient="auto-start-reverse">'
+     + '<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" '
+     + 'stroke-linecap="round" stroke-linejoin="round"/></marker></defs>';
+
+  (d.rects || []).forEach(function (r) {
+    s += '<rect x="' + r.x + '" y="' + r.y + '" width="' + r.w + '" height="' + r.h
+       + '" rx="' + (r.rx == null ? 0 : r.rx) + '" fill="' + (r.fill || '#FFFFFF')
+       + '" stroke="' + (r.stroke || 'none') + '" stroke-width="' + (r.sw == null ? 0.5 : r.sw) + '"/>';
+  });
+
+  (d.edges || []).forEach(function (e) {
+    const path = e.d || ('M' + e.from[0] + ' ' + e.from[1] + ' L' + e.to[0] + ' ' + e.to[1]);
+    s += '<path d="' + path + '" fill="none" stroke="' + (e.stroke || '#888780')
+       + '" stroke-width="' + (e.sw == null ? 1.5 : e.sw) + '"'
+       + (e.dash ? ' stroke-dasharray="5 4"' : '')
+       + (e.arrow === false ? '' : ' marker-end="url(#' + mid + ')"') + '/>';
+  });
+
+  (d.texts || []).forEach(function (t) {
+    s += '<text x="' + t.x + '" y="' + t.y + '" font-size="' + (t.size || 12)
+       + '" fill="' + (t.fill || '#5F5E5A') + '" text-anchor="' + (t.anchor || 'start')
+       + '" font-weight="' + (t.weight || 400) + '" dominant-baseline="central">'
+       + esc(t.text) + '</text>';
+  });
+
+  (d.nodes || []).forEach(function (n) {
+    const th = THEME[n.theme] || THEME.blue;
+    const fill = n.fill || th.fill;
+    const stroke = n.stroke || th.stroke;
+    const color = n.color || th.text;
+    const cx = n.x + n.w / 2;
+    const cy = n.y + n.h / 2;
+    const size = n.size || 13;
+    s += '<g><rect x="' + n.x + '" y="' + n.y + '" width="' + n.w + '" height="' + n.h
+       + '" rx="' + (n.rx == null ? 8 : n.rx) + '" fill="' + fill + '" stroke="' + stroke
+       + '" stroke-width="0.5"/>';
+    if (n.sub) {
+      s += '<text x="' + cx + '" y="' + (cy - 9) + '" font-size="' + size + '" fill="' + color
+         + '" text-anchor="middle" font-weight="' + (n.weight || 400)
+         + '" dominant-baseline="central">' + esc(n.label) + '</text>';
+      s += '<text x="' + cx + '" y="' + (cy + 10) + '" font-size="12" fill="' + color
+         + '" opacity="0.85" text-anchor="middle" dominant-baseline="central">'
+         + esc(n.sub) + '</text>';
+    } else {
+      s += '<text x="' + cx + '" y="' + cy + '" font-size="' + size + '" fill="' + color
+         + '" text-anchor="middle" font-weight="' + (n.weight || 400)
+         + '" dominant-baseline="central">' + esc(n.label) + '</text>';
+    }
+    s += '</g>';
+  });
+
+  return s + '</svg>';
+}
+
+function buildFigure(d, i) {
+  return '<figure id="' + d.id + '">'
+    + '<figcaption><h2>' + esc(d.title) + '</h2><p class="cap">' + esc(d.desc) + '</p></figcaption>'
+    + '<div class="canvas" data-canvas="' + i + '">' + renderDiagram(d) + '</div>'
+    + '<div class="toolbar">'
+    + '<button data-act="edit" data-i="' + i + '">编辑</button>'
+    + '<button data-act="svg" data-i="' + i + '">导出 SVG</button>'
+    + '<button data-act="reset" data-i="' + i + '">恢复此图</button>'
+    + '</div>'
+    + '<div class="editor" data-editor="' + i + '" hidden>'
+    + '<textarea spellcheck="false" data-text="' + i + '"></textarea>'
+    + '<div class="row">'
+    + '<button class="primary" data-act="apply" data-i="' + i + '">应用修改</button>'
+    + '<button data-act="cancel" data-i="' + i + '">取消</button>'
+    + '<span class="msg" data-msg="' + i + '"></span>'
+    + '</div></div>'
+    + '</figure>';
+}
+
+function renderAll() {
+  document.getElementById('app').innerHTML = DATA.map(buildFigure).join('');
+}
+
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(DATA)); } catch (e) { /* 忽略 */ }
+}
+
+function repaint(i) {
+  const box = document.querySelector('[data-canvas="' + i + '"]');
+  if (box) box.innerHTML = renderDiagram(DATA[i]);
+}
+
+function downloadSVG(d) {
+  const svg = renderDiagram(d).replace('<svg ', '<svg xmlns:xlink="http://www.w3.org/1999/xlink" ');
+  const blob = new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + svg],
+                        { type: 'image/svg+xml;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = d.id + '.svg';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 1500);
+}
+
+document.addEventListener('click', function (ev) {
+  const btn = ev.target.closest('button[data-act]');
+  if (!btn) return;
+  const act = btn.dataset.act;
+  const i = Number(btn.dataset.i);
+  const editor = document.querySelector('[data-editor="' + i + '"]');
+  const area = document.querySelector('[data-text="' + i + '"]');
+  const msg = document.querySelector('[data-msg="' + i + '"]');
+
+  if (act === 'edit') {
+    area.value = JSON.stringify(DATA[i], null, 2);
+    editor.hidden = false;
+    msg.textContent = '';
+    area.focus();
+    return;
+  }
+  if (act === 'cancel') {
+    editor.hidden = true;
+    msg.textContent = '';
+    return;
+  }
+  if (act === 'apply') {
+    let obj;
+    try {
+      obj = JSON.parse(area.value);
+    } catch (e) {
+      msg.className = 'msg';
+      msg.textContent = 'JSON 格式有误：' + e.message;
+      return;
+    }
+    const bad = [];
+    if (typeof obj.width !== 'number' || typeof obj.height !== 'number') bad.push('width / height');
+    if (!Array.isArray(obj.nodes)) bad.push('nodes 数组');
+    if (bad.length) {
+      msg.className = 'msg';
+      msg.textContent = '缺少必需字段：' + bad.join('、');
+      return;
+    }
+    obj.id = DATA[i].id;
+    DATA[i] = obj;
+    save();
+    repaint(i);
+    msg.className = 'msg ok';
+    msg.textContent = '已应用';
+    return;
+  }
+  if (act === 'reset') {
+    DATA[i] = JSON.parse(JSON.stringify(INITIAL[i]));
+    save();
+    repaint(i);
+    if (editor) editor.hidden = true;
+    return;
+  }
+  if (act === 'svg') {
+    downloadSVG(DATA[i]);
+  }
+});
+
+renderAll();
+</script>
+</body>
+</html>

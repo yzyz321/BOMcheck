@@ -1,0 +1,39 @@
+#include <windows.h>
+#include "bs_version_gen.h"
+
+/* 唯一一份 manifest：靠 .rc 嵌进 exe，不依赖同名外部文件 */
+1 RT_MANIFEST "app.manifest"
+
+/* 程序图标：由 tools/make_icon.py 从设计稿生成，10 档尺寸（16~256）
+   ID 用 1 与 IDI_ICON1 同值，代码里 LoadIconW(hInst, MAKEINTRESOURCEW(1)) 即可取到 */
+1 ICON "app.ico"
+
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
+
+VS_VERSION_INFO VERSIONINFO
+  FILEVERSION     BS_VER_MAJOR,BS_VER_MINOR,BS_VER_PATCH,0
+  PRODUCTVERSION  BS_VER_MAJOR,BS_VER_MINOR,BS_VER_PATCH,0
+  FILEFLAGSMASK   0x3fL
+  FILEFLAGS       0x0L
+  FILEOS          VOS_NT_WINDOWS32
+  FILETYPE        VFT_APP
+  FILESUBTYPE     VFT2_UNKNOWN
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "080404b0"
+    BEGIN
+      VALUE "CompanyName",      "BOMCheck"
+      VALUE "FileDescription",  "BOM compare & duplicate check tool"
+      VALUE "FileVersion",      BS_VERSION_STR ".0"
+      VALUE "InternalName",     "BOMCheck"
+      VALUE "OriginalFilename", BS_EXE_NAME
+      VALUE "ProductName",      "BOMCheck"
+      VALUE "ProductVersion",   BS_VERSION_STR ".0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x804, 1200
+  END
+END

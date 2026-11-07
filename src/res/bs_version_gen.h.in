@@ -1,0 +1,15 @@
+/* 由 CMake 生成，不要手改。版本号唯一来源：CMakeLists.txt 的 project(... VERSION) */
+#ifndef BS_VERSION_GEN_H
+#define BS_VERSION_GEN_H
+
+#define BS_VERSION_STR  "@BS_VERSION@"
+#define BS_EXE_NAME     "@BS_EXE@.exe"
+
+#define BS_VER_MAJOR    @PROJECT_VERSION_MAJOR@
+#define BS_VER_MINOR    @PROJECT_VERSION_MINOR@
+#define BS_VER_PATCH    @PROJECT_VERSION_PATCH@
+
+/* 图标资源 ID：.rc 与 C++ 共用这一处，避免两边各写一个 1 各自漂 */
+#define BS_ICON_ID      1
+
+#endif /* BS_VERSION_GEN_H */
